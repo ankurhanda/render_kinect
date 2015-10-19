@@ -90,15 +90,20 @@ int main(int argc, char **argv)
   
   cam_info.z_near = 0.5;
   cam_info.z_far = 6.0;
-  cam_info.fx_ = 580.0;
-  cam_info.fy_ = 580.0;
+
+//  cam_info.fx_ = 580.0;
+//  cam_info.fy_ = -580.0;
+
+  cam_info.fx_ = 420.0;
+  cam_info.fy_ = -420.0;
+
   // baseline between IR projector and IR camera
   cam_info.tx_ = 0.075;
 
   // Type of noise
   //  cam_info.noise_ = render_kinect::GAUSSIAN;
-  //  cam_info.noise_ = render_kinect::PERLIN;
-  cam_info.noise_ = render_kinect::NONE;
+    cam_info.noise_ = render_kinect::PERLIN;
+//  cam_info.noise_ = render_kinect::NONE;
 
   // Test Transform
   Eigen::Affine3d transform(Eigen::Affine3d::Identity());
@@ -109,19 +114,83 @@ int main(int argc, char **argv)
   render_kinect::Simulate Simulator(cam_info, full_path.str(), dot_path);
 
   // Number of samples
-  int frames = 10;
+  int frames = 1000;
   // Flags for what output data should be generated
   bool store_depth = 1;
-  bool store_label = 1;
-  bool store_pcd = 1;
+  bool store_label = 0;
+  bool store_pcd = 0;
+
+  std::cout<<"About to read the poses" << std::endl;
+
+  std::ifstream ifile("../obj_models/bedroom1_poses_0.txt");
+
+  float r11, r12, r13, t1;
+  float r21, r22, r23, t2;
+  float r31, r32, r33, t3;
+
+  std::vector<Eigen::Isometry3f>vec_eT_wc;
+
+  int count = 0;
+
+  while(1)
+  {
+      if ( count > 1000 )
+          break;
+
+      ifile >> r11; ifile >> r12; ifile >> r13; ifile >> t1;
+      ifile >> r21; ifile >> r22; ifile >> r23; ifile >> t2;
+      ifile >> r31; ifile >> r32; ifile >> r33; ifile >> t3;
+
+
+      if ( ifile.eof() )
+          break;
+
+      Eigen::Isometry3f eT_wc;
+      eT_wc.setIdentity();
+
+      eT_wc(0,0) = r11;eT_wc(0,1) = r12;eT_wc(0,2) = r13;
+      eT_wc(1,0) = r21;eT_wc(1,1) = r22;eT_wc(1,2) = r23;
+      eT_wc(2,0) = r31;eT_wc(2,1) = r32;eT_wc(2,2) = r33;
+
+      eT_wc(0,3) = t1;
+      eT_wc(1,3) = t2;
+      eT_wc(2,3) = t3;
+
+//      std::cout<<eT_wc(0,0)<<" "<<eT_wc(0,1)<<" "<<eT_wc(0,2)<<" "<<eT_wc(0,3)<<std::endl;
+//      std::cout<<eT_wc(1,0)<<" "<<eT_wc(1,1)<<" "<<eT_wc(1,2)<<" "<<eT_wc(1,3)<<std::endl;
+//      std::cout<<eT_wc(2,0)<<" "<<eT_wc(2,1)<<" "<<eT_wc(2,2)<<" "<<eT_wc(2,3)<<std::endl;
+//      std::cout<<std::endl;
+
+      vec_eT_wc.push_back(eT_wc);
+
+      count++;
+  }
+
+  ifile.close();
+
+  std::cout<<"Finished Reading the pose file" << std::endl;
+
 
   // Storage of random transform
   Eigen::Affine3d noise;
   for(int i=0; i<frames; ++i) {
     
     // sample noisy transformation around initial one
-    getRandomTransform(0.02,0.02,0.02,0.05,noise);
-    Eigen::Affine3d current_tf = noise*transform;
+//    getRandomTransform(0.02,0.02,0.02,0.05,noise);
+//    Eigen::Affine3d current_tf = noise*transform;
+
+    Eigen::Affine3d current_tf;
+    current_tf.setIdentity();
+
+    Eigen::Isometry3f eT_wc = vec_eT_wc.at(i);
+
+    Eigen::Vector3f  t = eT_wc.translation();
+    Eigen::Quaternionf q(eT_wc.rotation());
+
+    current_tf.translate(Eigen::Vector3d(t[0],t[1],t[2]));
+    current_tf.rotate(Eigen::Quaterniond(q.w(),q.x(),q.y(),q.z()));
+
+    std::cout<<"frame no = " << i << std::endl;
     
     // give pose and object name to renderer
     Simulator.simulateMeasurement(current_tf, store_depth, store_label, store_pcd);

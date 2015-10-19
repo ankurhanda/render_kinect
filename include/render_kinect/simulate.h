@@ -58,26 +58,27 @@ namespace render_kinect {
   public:
   
   Simulate(CameraInfo &cam_info, std::string object_name, std::string dot_path) 
-    : out_path_("/tmp/") 
-      {
-	// allocate memory for depth image
-	int w = cam_info.width;
-	int h = cam_info.height;
+    : out_path_("./")
+  {
+      // allocate memory for depth image
+      int w = cam_info.width;
+      int h = cam_info.height;
 
-	depth_im_ = cv::Mat(h, w, CV_32FC1);
-	scaled_im_ = cv::Mat(h, w, CV_32FC1);
+      depth_im_ = cv::Mat(h, w, CV_32FC1);
+      scaled_im_ = cv::Mat(h, w, CV_32FC1);
 
-	object_model_ = new KinectSimulator(cam_info, object_name, dot_path);
+      object_model_ = new KinectSimulator(cam_info, object_name, dot_path);
 
-	transform_ = Eigen::Affine3d::Identity();
+      transform_ = Eigen::Affine3d::Identity();
 
-      }
+  }
 
     ~Simulate() {
       delete object_model_;
     }
 
-    void simulateMeasurement(const Eigen::Affine3d &new_tf, bool store_depth, bool store_label, bool store_pcd) {
+    void simulateMeasurement(const Eigen::Affine3d &new_tf, bool store_depth, bool store_label, bool store_pcd)
+    {
       countf++;
       
       // update old transform
